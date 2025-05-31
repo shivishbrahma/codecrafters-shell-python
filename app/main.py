@@ -21,7 +21,7 @@ def completer(text, state):
             tab_state["count"] += 1
             return None
         elif tab_state["count"] >= 1:
-            print("\n" + " ".join(matches))
+            print("\n" + "  ".join(matches))
             readline.redisplay()
 
     if state < len(matches):
