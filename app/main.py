@@ -7,6 +7,11 @@ def parse_command(command):
     if len(command_parts) == 0:
         return
 
+    if command_parts[0] == "echo":
+        sys.stdout.write(" ".join(command_parts[1:]))
+        sys.stdout.write("\n")
+        return
+
     if command_parts[0] == "exit":
         sys.exit(int(command_parts[1]))
 
