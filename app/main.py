@@ -7,8 +7,11 @@ import readline
 
 
 def completer(text, state):
-    matches = [cmd + " " for cmd in commands if cmd.startswith(text)]
-    return matches[state] if state < len(matches) else None
+    matches = [cmd for cmd in commands if cmd.startswith(text)]
+    if state < len(matches):
+        return matches[state] + " "
+    sys.stdout.write("\a")
+    return None
 
 
 def parse_arguments(command: str) -> Tuple[str, List[str]]:
