@@ -10,6 +10,20 @@ def completer(text, state):
     autocomplete_list = commands + list(executables.keys())
     autocomplete_list.sort()
     matches = [cmd for cmd in autocomplete_list if cmd.startswith(text)]
+
+    if tab_state["last_text"] != text:
+        tab_state["count"] = 0
+        tab_state["last_text"] = text
+
+    if state == 0 and len(matches) > 1:
+        if tab_state["count"] == 0:
+            sys.stdout.write("\a")
+            tab_state["count"] += 1
+            return None
+        elif tab_state["count"] >= 1:
+            print("\n" + " ".join(matches))
+            readline.redisplay()
+
     if state < len(matches):
         return matches[state] + " "
     sys.stdout.write("\a")
@@ -116,6 +130,7 @@ def main():
     parse_command(command)
     main()
 
+
 def load_exec():
     paths = os.getenv("PATH").split(os.pathsep)
     for dir in paths:
@@ -128,6 +143,8 @@ def load_exec():
 if __name__ == "__main__":
     commands = ["echo", "exit", "type", "pwd", "cd"]
     executables = {}
+    tab_state = {"count": 0, "last_text": ""}
+
     load_exec()
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
