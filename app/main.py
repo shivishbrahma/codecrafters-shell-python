@@ -7,8 +7,6 @@ import readline
 
 
 def completer(text, state):
-    autocomplete_list = list(set(commands + list(executables.keys())))
-    autocomplete_list.sort()
     matches = [cmd for cmd in autocomplete_list if cmd.startswith(text)]
 
     if tab_state["last_text"] != text:
@@ -146,6 +144,8 @@ if __name__ == "__main__":
     commands = ["echo", "exit", "type", "pwd", "cd"]
     executables = {}
     tab_state = {"count": 0, "last_text": ""}
+    autocomplete_list = list(set(commands + list(executables.keys())))
+    autocomplete_list.sort()
 
     load_exec()
     readline.set_completer(completer)
