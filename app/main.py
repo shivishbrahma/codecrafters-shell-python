@@ -1,5 +1,6 @@
 import sys
 import shutil
+import os
 
 
 def parse_command(command):
@@ -33,6 +34,10 @@ def parse_command(command):
 
     if command_parts[0] == "exit":
         sys.exit(int(command_parts[1]))
+
+    if path := shutil.which(command_parts[0]):
+        os.system(command)
+        return
 
     sys.stdout.write("{}: command not found\n".format(command))
 
