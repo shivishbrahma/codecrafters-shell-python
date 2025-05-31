@@ -9,7 +9,7 @@ def parse_command(command):
     if len(command_parts) == 0:
         return
 
-    commands_list = ["echo", "exit", "type"]
+    commands_list = ["echo", "exit", "type", "pwd"]
 
     if command_parts[0] == "echo":
         sys.stdout.write(" ".join(command_parts[1:]))
@@ -34,6 +34,11 @@ def parse_command(command):
 
     if command_parts[0] == "exit":
         sys.exit(int(command_parts[1]))
+
+    if command_parts[0] == "pwd":
+        sys.stdout.write(os.getcwd())
+        sys.stdout.write("\n")
+        return
 
     if path := shutil.which(command_parts[0]):
         os.system(command)
