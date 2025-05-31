@@ -1,62 +1,103 @@
 import sys
 import shutil
 import os
+from typing import Tuple, List
 
 
-def parse_command(command):
-    command_parts = command.split()
+def parse_arguments(command: str) -> Tuple[str, List[str]]:
+    command_parts = command.split(" ", maxsplit=1)
+    cmd = command_parts[0]
+    if len(command_parts) == 1:
+        return (cmd, [])
 
-    if len(command_parts) == 0:
-        return
+    quotes = ["'", '"']
+    command_parts = command_parts[-1]
+    if quotes[0] not in command_parts and quotes[1] not in command_parts:
+        return (cmd, list(filter(lambda x: x.strip() != "", command_parts.split(" "))))
+
+    args = []
+    i = 0
+    while i < len(command_parts):
+        if command_parts[i] in quotes:
+            quote_idx = quotes.index(command_parts[i])
+            start_idx = i + 1
+            end_idx = command_parts.find(quotes[quote_idx], start_idx)
+            if end_idx == -1:
+                print("{}: unmatched quote".format(command))
+                return (cmd, [])
+            args.append(command_parts[start_idx:end_idx])
+
+            if (
+                end_idx != len(command_parts) - 1
+                and command_parts[end_idx + 1] == quotes[quote_idx]
+            ):
+                start_idx = end_idx + 2
+                end_idx = command_parts.find(quotes[quote_idx], start_idx + 1)
+                args[-1] += command_parts[start_idx:end_idx]
+        else:
+            start_idx = i
+            end_idx = command_parts.find(" ", start_idx)
+            if end_idx == -1:
+                args.append(command_parts[start_idx:])
+                break
+            args.append(command_parts[start_idx:end_idx])
+        i = end_idx + 1
+
+    args = list(filter(lambda x: x.strip() != "", args))
+    # print(str(args), file=sys.stderr)
+
+    return (cmd, args)
+
+
+def parse_command(command: str):
+    cmd, args = parse_arguments(command)
 
     commands_list = ["echo", "exit", "type", "pwd"]
 
-    if command_parts[0] == "echo":
-        sys.stdout.write(" ".join(command_parts[1:]) + "\n")
+    if cmd == "echo":
+        print(" ".join(args))
         return
 
-    if command_parts[0] == "type":
-        if len(command_parts) == 1:
-            sys.stdout.write("{}: missing file operand\n".format(command))
+    if cmd == "type":
+        if len(args) == 0:
+            print("{}: missing file operand".format(command))
             return
 
-        if command_parts[1] in commands_list:
-            sys.stdout.write("{} is a shell builtin\n".format(command_parts[1]))
+        if args[0] in commands_list:
+            print("{} is a shell builtin".format(args[0]))
             return
 
-        if path := shutil.which(command_parts[1]):
-            sys.stdout.write("{} is {}\n".format(command_parts[1], path))
+        if path := shutil.which(args[0]):
+            print("{} is {}".format(args[0], path))
             return
 
-        sys.stdout.write("{}: not found\n".format(command_parts[1]))
+        print("{}: not found".format(args[0]))
         return
 
-    if command_parts[0] == "exit":
-        sys.exit(int(command_parts[1]))
+    if cmd == "exit":
+        err_code = 0
+        if len(args) > 0:
+            err_code = int(args[0])
+        sys.exit(err_code)
 
-    if command_parts[0] == "pwd":
-        sys.stdout.write(os.getcwd())
-        sys.stdout.write("\n")
+    if cmd == "pwd":
+        print(os.getcwd())
         return
 
-    if command_parts[0] == "cd":
-        if len(command_parts) > 1:
-            dir_path = os.path.expanduser(command_parts[1])
+    if cmd == "cd":
+        if len(args) == 1:
+            dir_path = os.path.expanduser(args[0])
             if os.path.exists(dir_path):
                 os.chdir(dir_path)
             else:
-                sys.stdout.write(
-                    "{}: {}: No such file or directory\n".format(
-                        command_parts[0], command_parts[1]
-                    )
-                )
+                print("{}: {}: No such file or directory".format(cmd, args[0]))
             return
 
-    if path := shutil.which(command_parts[0]):
+    if path := shutil.which(cmd):
         os.system(command)
         return
 
-    sys.stdout.write("{}: command not found\n".format(command_parts[0]))
+    print("{}: command not found".format(cmd))
 
 
 def main():
