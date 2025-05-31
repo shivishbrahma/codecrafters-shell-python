@@ -7,9 +7,23 @@ def parse_command(command):
     if len(command_parts) == 0:
         return
 
+    commands_list = ["echo", "exit", "type"]
+
     if command_parts[0] == "echo":
         sys.stdout.write(" ".join(command_parts[1:]))
         sys.stdout.write("\n")
+        return
+
+    if command_parts[0] == "type":
+        if len(command_parts) == 1:
+            sys.stdout.write("{}: missing file operand\n".format(command))
+            return
+
+        if command_parts[1] in commands_list:
+            sys.stdout.write("{} is a shell builtin\n".format(command_parts[1]))
+            return
+
+        sys.stdout.write("{}: not found\n".format(command_parts[1]))
         return
 
     if command_parts[0] == "exit":
