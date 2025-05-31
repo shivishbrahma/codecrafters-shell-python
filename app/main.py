@@ -8,42 +8,47 @@ import shlex
 def parse_arguments(command: str) -> Tuple[str, List[str]]:
     command_parts = shlex.split(command)
     filename = None
-    is_error = False
+    redirect_mode = ""
     cmd = command_parts[0]
 
     if len(command_parts) == 1:
-        return (cmd, [], None, is_error)
+        return (cmd, [], None, redirect_mode)
 
     args = command_parts[1:]
     out_op_idx = -1
 
-    if "1>" in args:
-        out_op_idx = args.index("1>")
-    if "2>" in args:
-        out_op_idx = args.index("2>")
-        is_error = True
-    if ">" in args:
-        out_op_idx = args.index(">")
+    modes = ["1>", "2>", ">", ">>", "1>>", "2>>"]
+
+    for mode in modes:
+        if mode in args:
+            out_op_idx = args.index(mode)
+            redirect_mode = mode
+            break
 
     if out_op_idx != -1:
         filename = args[out_op_idx + 1]
         args = args[:out_op_idx]
 
-    return (cmd, args, filename, is_error)
+    return (cmd, args, filename, redirect_mode)
 
 
 def parse_command(command: str):
-    cmd, args, filename, is_error = parse_arguments(command)
+    cmd, args, filename, redirect_mode = parse_arguments(command)
 
-    if filename is None:
-        file = sys.stdout
-    elif is_error:
-        # file = open(filename, "w")
+    if redirect_mode == "1>" or redirect_mode == ">":
+        file = open(filename, "w")
+    elif redirect_mode == "2>":
         with open(filename, "w") as f:
             f.write("")
         file = sys.stderr
+    elif redirect_mode == ">>" or redirect_mode == "1>>":
+        file = open(filename, "a")
+    elif redirect_mode == "2>>":
+        with open(filename, "a") as f:
+            f.write("")
+        file = sys.stderr
     else:
-        file = open(filename, "w")
+        file = sys.stdout
 
     commands_list = ["echo", "exit", "type", "pwd", "cd"]
 
