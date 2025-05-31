@@ -7,7 +7,7 @@ import readline
 
 
 def completer(text, state):
-    autocomplete_list = commands + list(executables.keys())
+    autocomplete_list = list(set(commands + list(executables.keys())))
     autocomplete_list.sort()
     matches = [cmd for cmd in autocomplete_list if cmd.startswith(text)]
 
@@ -20,7 +20,7 @@ def completer(text, state):
             sys.stdout.write("\a")
             tab_state["count"] += 1
             return None
-        elif tab_state["count"] >= 1:
+        else:
             print("\n" + "  ".join(matches))
             sys.stdout.write("$ {}".format(text))
             sys.stdout.flush()
