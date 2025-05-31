@@ -103,7 +103,7 @@ def parse_command(command: str):
                 )
             return
 
-    if path in executables.keys():
+    if cmd in executables.keys():
         os.system(command)
         return
 
