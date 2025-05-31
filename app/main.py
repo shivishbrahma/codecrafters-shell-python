@@ -3,6 +3,12 @@ import shutil
 import os
 from typing import Tuple, List
 import shlex
+import readline
+
+
+def completer(text, state):
+    matches = [cmd + " " for cmd in commands if cmd.startswith(text)]
+    return matches[state] if state < len(matches) else None
 
 
 def parse_arguments(command: str) -> Tuple[str, List[str]]:
@@ -50,8 +56,6 @@ def parse_command(command: str):
     else:
         file = sys.stdout
 
-    commands_list = ["echo", "exit", "type", "pwd", "cd"]
-
     if cmd == "echo":
         print(" ".join(args), file=file)
         return
@@ -61,7 +65,7 @@ def parse_command(command: str):
             print("{}: missing file operand".format(command), file=file)
             return
 
-        if args[0] in commands_list:
+        if args[0] in commands:
             print("{} is a shell builtin".format(args[0]), file=file)
             return
 
@@ -102,13 +106,14 @@ def parse_command(command: str):
 
 
 def main():
-    # Uncomment this block to pass the first stage
-    sys.stdout.write("$ ")
     # Wait for user input
-    command = input()
+    command = input("$ ")
     parse_command(command)
     main()
 
 
 if __name__ == "__main__":
+    commands = ["echo", "exit", "type", "pwd", "cd"]
+    readline.set_completer(completer)
+    readline.parse_and_bind("tab: complete")
     main()
