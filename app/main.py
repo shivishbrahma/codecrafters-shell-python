@@ -1,4 +1,5 @@
 import sys
+import shutil
 
 
 def parse_command(command):
@@ -21,6 +22,10 @@ def parse_command(command):
 
         if command_parts[1] in commands_list:
             sys.stdout.write("{} is a shell builtin\n".format(command_parts[1]))
+            return
+
+        if path := shutil.which(command_parts[1]):
+            sys.stdout.write("{} is {}\n".format(command_parts[1], path))
             return
 
         sys.stdout.write("{}: not found\n".format(command_parts[1]))
