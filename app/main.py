@@ -9,11 +9,22 @@ import readline
 def completer(text, state):
     matches = [cmd for cmd in autocomplete_list if cmd.startswith(text)]
 
+    # Check if the matches are partial
+    partial = False
+
+    if len(matches) >= 0:
+        partial = True
+        for i in range(1, len(matches)):
+            if not matches[i].startswith(matches[i - 1]):
+                partial = False
+                break
+
+    # Reset the tab counter if text is modified
     if tab_state["last_text"] != text:
         tab_state["count"] = 0
         tab_state["last_text"] = text
 
-    if state == 0 and len(matches) > 1:
+    if state == 0 and len(matches) > 1 and not partial:
         if tab_state["count"] == 0:
             sys.stdout.write("\a")
             tab_state["count"] += 1
