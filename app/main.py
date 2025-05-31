@@ -7,15 +7,21 @@ import shlex
 
 def parse_arguments(command: str) -> Tuple[str, List[str]]:
     command_parts = shlex.split(command)
-    cmd = command_parts[0]
-    if len(command_parts) == 1:
-        return (cmd, [], None)
-    args = command_parts[1:]
     filename = None
+    is_error = False
+    cmd = command_parts[0]
 
+    if len(command_parts) == 1:
+        return (cmd, [], None, is_error)
+
+    args = command_parts[1:]
     out_op_idx = -1
+
     if "1>" in args:
         out_op_idx = args.index("1>")
+    if "2>" in args:
+        out_op_idx = args.index("2>")
+        is_error = True
     if ">" in args:
         out_op_idx = args.index(">")
 
@@ -23,18 +29,23 @@ def parse_arguments(command: str) -> Tuple[str, List[str]]:
         filename = args[out_op_idx + 1]
         args = args[:out_op_idx]
 
-    return (cmd, args, filename)
+    return (cmd, args, filename, is_error)
 
 
 def parse_command(command: str):
-    cmd, args, filename = parse_arguments(command)
+    cmd, args, filename, is_error = parse_arguments(command)
 
     if filename is None:
         file = sys.stdout
+    elif is_error:
+        # file = open(filename, "w")
+        with open(filename, "w") as f:
+            f.write("")
+        file = sys.stderr
     else:
         file = open(filename, "w")
 
-    commands_list = ["echo", "exit", "type", "pwd"]
+    commands_list = ["echo", "exit", "type", "pwd", "cd"]
 
     if cmd == "echo":
         print(" ".join(args), file=file)
