@@ -23,6 +23,7 @@ def completer(text, state):
         elif tab_state["count"] >= 1:
             print("\n" + "  ".join(matches))
             readline.redisplay()
+            tab_state["count"] = 0
 
     if state < len(matches):
         return matches[state] + " "
