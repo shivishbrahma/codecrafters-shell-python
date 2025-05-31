@@ -7,7 +7,9 @@ import readline
 
 
 def completer(text, state):
-    matches = [cmd for cmd in commands if cmd.startswith(text)]
+    autocomplete_list = commands + list(executables.keys())
+    autocomplete_list.sort()
+    matches = [cmd for cmd in autocomplete_list if cmd.startswith(text)]
     if state < len(matches):
         return matches[state] + " "
     sys.stdout.write("\a")
@@ -101,7 +103,7 @@ def parse_command(command: str):
                 )
             return
 
-    if path := shutil.which(cmd):
+    if path in executables.keys():
         os.system(command)
         return
 
@@ -114,9 +116,19 @@ def main():
     parse_command(command)
     main()
 
+def load_exec():
+    paths = os.getenv("PATH").split(os.pathsep)
+    for dir in paths:
+        if os.path.isdir(dir):
+            for file in os.listdir(dir):
+                if file not in executables and os.path.isfile(os.path.join(dir, file)):
+                    executables[file] = os.path.join(dir, file)
+
 
 if __name__ == "__main__":
     commands = ["echo", "exit", "type", "pwd", "cd"]
+    executables = {}
+    load_exec()
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
     main()
