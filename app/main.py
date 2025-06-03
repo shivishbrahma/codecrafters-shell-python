@@ -7,25 +7,21 @@ import readline
 
 
 def completer(text, state):
+    load_exec()
+    autocomplete_list = list(set(commands + list(executables.keys())))
+    autocomplete_list.sort()
     matches = [cmd for cmd in autocomplete_list if cmd.startswith(text)]
-
-    # Check if the matches are partial
-    partial = False
-
-    if len(matches) >= 0:
-        partial = True
-        for i in range(1, len(matches)):
-            if not matches[i].startswith(matches[i - 1]):
-                partial = False
-                break
 
     # Reset the tab counter if text is modified
     if tab_state["last_text"] != text:
         tab_state["count"] = 0
         tab_state["last_text"] = text
 
-    if state == 0 and len(matches) > 1 and not partial:
+    if state == 0 and len(matches) > 1:
         if tab_state["count"] == 0:
+            if all(match.startswith(matches[0]) for match in matches[1:]):
+                return matches[0]
+
             sys.stdout.write("\a")
             tab_state["count"] += 1
             return None
@@ -155,8 +151,6 @@ if __name__ == "__main__":
     commands = ["echo", "exit", "type", "pwd", "cd"]
     executables = {}
     tab_state = {"count": 0, "last_text": ""}
-    autocomplete_list = list(set(commands + list(executables.keys())))
-    autocomplete_list.sort()
 
     load_exec()
     readline.set_completer(completer)
