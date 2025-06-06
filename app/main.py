@@ -22,6 +22,19 @@ def load_exec():
                     executables[file] = full_path
 
 
+def load_history(filename):
+    if os.path.exists(filename):
+        with open(filename, "r") as f:
+            # history_list.clear()
+            for line in f:
+                if line.strip() != "":
+                    history_list.append(line.strip())
+
+        readline.read_history_file(filename)
+    else:
+        print(f"{filename}: no such file or directory")
+
+
 def completer(text, state):
     load_exec()
     autocomplete_list = sorted(set(commands + list(executables.keys())))
@@ -109,12 +122,20 @@ def run_builtin(cmd, args):
             return f"{cmd}: {args[0]}: No such file or directory\n"
 
     if cmd == "history":
-        # len_size = len(str(len(history_list)))
+        len_size = len(str(len(history_list)))
         out = ""
-        arg_line = len(history_list) if len(args) == 0 else int(args[0])
+        arg_line = len(history_list)
+        if len(args) > 0:
+            if args[0] == "-r":
+                history_path = args[1]
+                load_history(history_path)
+                return
+
+            arg_line = int(args[0])
+
         for lineno, command in enumerate(history_list):
             if lineno + 1 > len(history_list) - arg_line:
-                out += f"{lineno+1} {command}\n"
+                out += "{} {}\n".format(str(lineno + 1).rjust(len_size), command)
         return out
 
 
