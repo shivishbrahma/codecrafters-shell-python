@@ -7,10 +7,10 @@ import subprocess
 from typing import Tuple, List, Union
 
 # Globals
-commands = ["echo", "exit", "type", "pwd", "cd"]
+commands = ["echo", "exit", "type", "pwd", "cd", "history"]
 executables = {}
 tab_state = {"count": 0, "last_text": ""}
-
+history_list = []
 
 def load_exec():
     for dir in os.getenv("PATH", "").split(os.pathsep):
@@ -107,6 +107,13 @@ def run_builtin(cmd, args):
                 return None
             return f"{cmd}: {args[0]}: No such file or directory\n"
 
+    if cmd == "history":
+        # len_size = len(str(len(history_list)))
+        out = ""
+        for lineno, command in enumerate(history_list):
+            out += f"{lineno} {command}\n"
+        return out
+
 
 def handle_output(stdout, stderr=None, redirect_mode="", filename=None):
     # print("Redirect_mode:", redirect_mode)
@@ -126,6 +133,7 @@ def handle_output(stdout, stderr=None, redirect_mode="", filename=None):
 
 
 def parse_command(command: str):
+    history_list.append(command)
     cmd, args, filename, redirect_mode, has_pipe = parse_arguments(command)
 
     # Building process chain
