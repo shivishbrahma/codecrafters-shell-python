@@ -231,6 +231,13 @@ def main():
 
 if __name__ == "__main__":
     load_exec()
+
+    if (histfile:= os.environ.get("HISTFILE")) is not None:
+        try:
+            readline.read_history_file(histfile)
+        except OSError:
+            pass
+
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
     main()
