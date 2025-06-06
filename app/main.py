@@ -97,6 +97,8 @@ def run_builtin(cmd, args):
             return f"{args[0]} is {path}\n"
         return f"{args[0]}: not found\n"
     if cmd == "exit":
+        if (histfile := os.environ.get("HISTFILE")) is not None:
+            readline.write_history_file(histfile)
         sys.exit(int(args[0]) if args else 0)
     if cmd == "pwd":
         return os.getcwd() + "\n"
