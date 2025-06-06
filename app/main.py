@@ -12,6 +12,7 @@ executables = {}
 tab_state = {"count": 0, "last_text": ""}
 history_list = []
 
+
 def load_exec():
     for dir in os.getenv("PATH", "").split(os.pathsep):
         if os.path.isdir(dir):
@@ -110,8 +111,10 @@ def run_builtin(cmd, args):
     if cmd == "history":
         # len_size = len(str(len(history_list)))
         out = ""
+        arg_line = len(history_list) if len(args) == 0 else int(args[0])
         for lineno, command in enumerate(history_list):
-            out += f"{lineno} {command}\n"
+            if lineno + 1 > len(history_list) - arg_line:
+                out += f"{lineno+1} {command}\n"
         return out
 
 
