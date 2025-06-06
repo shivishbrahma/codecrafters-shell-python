@@ -131,6 +131,13 @@ def run_builtin(cmd, args):
                 load_history(history_path)
                 return
 
+            if args[0] == "-w":
+                history_path = args[1]
+                with open(history_path, "w") as f:
+                    for command in history_list:
+                        print(command, file=f)
+                return
+
             arg_line = int(args[0])
 
         for lineno, command in enumerate(history_list):
