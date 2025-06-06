@@ -10,7 +10,7 @@ from typing import Tuple, List, Union
 commands = ["echo", "exit", "type", "pwd", "cd", "history"]
 executables = {}
 tab_state = {"count": 0, "last_text": ""}
-history_list = []
+last_appended_items = 0
 
 
 def load_exec():
@@ -20,19 +20,6 @@ def load_exec():
                 full_path = os.path.join(dir, file)
                 if file not in executables and os.path.isfile(full_path):
                     executables[file] = full_path
-
-
-def load_history(filename):
-    if os.path.exists(filename):
-        with open(filename, "r") as f:
-            # history_list.clear()
-            for line in f:
-                if line.strip() != "":
-                    history_list.append(line.strip())
-
-        readline.read_history_file(filename)
-    else:
-        print(f"{filename}: no such file or directory")
 
 
 def completer(text, state):
@@ -122,27 +109,39 @@ def run_builtin(cmd, args):
             return f"{cmd}: {args[0]}: No such file or directory\n"
 
     if cmd == "history":
-        len_size = len(str(len(history_list)))
+        len_size = len(str(readline.get_current_history_length()))
         out = ""
-        arg_line = len(history_list)
+        nitems = readline.get_current_history_length()
+        arg_line = nitems
         if len(args) > 0:
             if args[0] == "-r":
                 history_path = args[1]
-                load_history(history_path)
+                readline.read_history_file(history_path)
                 return
 
             if args[0] == "-w":
                 history_path = args[1]
-                with open(history_path, "w") as f:
-                    for command in history_list:
-                        print(command, file=f)
+                readline.write_history_file(history_path)
+                return
+
+            if args[0] == "-a":
+                global last_appended_items
+                history_path = args[1]
+                readline.append_history_file(
+                    nitems - last_appended_items,
+                    history_path,
+                )
+                last_appended_items = nitems
                 return
 
             arg_line = int(args[0])
 
-        for lineno, command in enumerate(history_list):
-            if lineno + 1 > len(history_list) - arg_line:
-                out += "{} {}\n".format(str(lineno + 1).rjust(len_size), command)
+        for lineno in range(1, nitems + 1):
+            if lineno > nitems - arg_line:
+                out += "{} {}\n".format(
+                    str(lineno).rjust(len_size),
+                    readline.get_history_item(lineno),
+                )
         return out
 
 
@@ -164,7 +163,6 @@ def handle_output(stdout, stderr=None, redirect_mode="", filename=None):
 
 
 def parse_command(command: str):
-    history_list.append(command)
     cmd, args, filename, redirect_mode, has_pipe = parse_arguments(command)
 
     # Building process chain
