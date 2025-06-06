@@ -1,31 +1,43 @@
-import sys
-import shutil
 import os
-from typing import Tuple, List
+import sys
 import shlex
+import shutil
 import readline
+import subprocess
+from typing import Tuple, List, Union
+
+# Globals
+commands = ["echo", "exit", "type", "pwd", "cd"]
+executables = {}
+tab_state = {"count": 0, "last_text": ""}
+
+
+def load_exec():
+    for dir in os.getenv("PATH", "").split(os.pathsep):
+        if os.path.isdir(dir):
+            for file in os.listdir(dir):
+                full_path = os.path.join(dir, file)
+                if file not in executables and os.path.isfile(full_path):
+                    executables[file] = full_path
 
 
 def completer(text, state):
     load_exec()
-    autocomplete_list = list(set(commands + list(executables.keys())))
-    autocomplete_list.sort()
+    autocomplete_list = sorted(set(commands + list(executables.keys())))
     matches = [cmd for cmd in autocomplete_list if cmd.startswith(text)]
 
-    # Reset the tab counter if text is modified
     if tab_state["last_text"] != text:
         tab_state["count"] = 0
         tab_state["last_text"] = text
 
     if state == 0 and len(matches) > 1:
-        if tab_state["count"] == 0:
-            if all(match.startswith(matches[0]) for match in matches[1:]):
-                return matches[0]
-
+        if tab_state["count"] == 0 and not all(
+            match.startswith(matches[0]) for match in matches[1:]
+        ):
             sys.stdout.write("\a")
             tab_state["count"] += 1
             return None
-        else:
+        elif tab_state["count"] == 1:
             print("\n" + "  ".join(matches))
             sys.stdout.write("$ {}".format(text))
             sys.stdout.flush()
@@ -33,125 +45,154 @@ def completer(text, state):
 
     if state < len(matches):
         return matches[state] + " "
+
     sys.stdout.write("\a")
     return None
 
 
-def parse_arguments(command: str) -> Tuple[str, List[str]]:
-    command_parts = shlex.split(command)
-    filename = None
-    redirect_mode = ""
-    cmd = command_parts[0]
+def parse_arguments(
+    command: str,
+) -> Tuple[List[str], List[List[str]], Union[str, None], str, bool]:
+    cmd, args, filename, redirect_mode, has_pipe = [], [], None, "", False
+    command_split = shlex.split(command)
+    has_pipe = "|" in command_split
 
-    if len(command_parts) == 1:
-        return (cmd, [], None, redirect_mode)
+    command_parts, command_part = [], []
+    for part in command_split:
+        if part == "|":
+            command_parts.append(command_part)
+            command_part = []
+        else:
+            command_part.append(part)
+    if command_part:
+        command_parts.append(command_part)
 
-    args = command_parts[1:]
-    out_op_idx = -1
+    for part in command_parts:
+        cmd.append(part[0])
+        part_args = part[1:] if len(part) > 1 else []
 
-    modes = ["1>", "2>", ">", ">>", "1>>", "2>>"]
+        for mode in ["1>", "2>", ">", ">>", "1>>", "2>>"]:
+            if mode in part_args:
+                idx = part_args.index(mode)
+                filename = part_args[idx + 1]
+                redirect_mode = mode
+                part_args = part_args[:idx]
+                break
 
-    for mode in modes:
-        if mode in args:
-            out_op_idx = args.index(mode)
-            redirect_mode = mode
-            break
+        args.append(part_args)
 
-    if out_op_idx != -1:
-        filename = args[out_op_idx + 1]
-        args = args[:out_op_idx]
-
-    return (cmd, args, filename, redirect_mode)
+    return cmd, args, filename, redirect_mode, has_pipe
 
 
-def parse_command(command: str):
-    cmd, args, filename, redirect_mode = parse_arguments(command)
-
-    if redirect_mode == "1>" or redirect_mode == ">":
-        file = open(filename, "w")
-    elif redirect_mode == "2>":
-        with open(filename, "w") as f:
-            f.write("")
-        file = sys.stderr
-    elif redirect_mode == ">>" or redirect_mode == "1>>":
-        file = open(filename, "a")
-    elif redirect_mode == "2>>":
-        with open(filename, "a") as f:
-            f.write("")
-        file = sys.stderr
-    else:
-        file = sys.stdout
-
+def run_builtin(cmd, args):
     if cmd == "echo":
-        print(" ".join(args), file=file)
-        return
-
+        return " ".join(args) + "\n"
     if cmd == "type":
-        if len(args) == 0:
-            print("{}: missing file operand".format(command), file=file)
-            return
-
+        if not args:
+            return f"{cmd}: missing file operand\n"
         if args[0] in commands:
-            print("{} is a shell builtin".format(args[0]), file=file)
-            return
-
+            return f"{args[0]} is a shell builtin\n"
         if path := shutil.which(args[0]):
-            print("{} is {}".format(args[0], path), file=file)
-            return
-
-        print("{}: not found".format(args[0]), file=file)
-        return
-
+            return f"{args[0]} is {path}\n"
+        return f"{args[0]}: not found\n"
     if cmd == "exit":
-        err_code = 0
-        if len(args) > 0:
-            err_code = int(args[0])
-        sys.exit(err_code)
-
+        sys.exit(int(args[0]) if args else 0)
     if cmd == "pwd":
-        print(os.getcwd(), file=file)
-        return
-
+        return os.getcwd() + "\n"
     if cmd == "cd":
         if len(args) == 1:
             dir_path = os.path.expanduser(args[0])
             if os.path.exists(dir_path):
                 os.chdir(dir_path)
-            else:
-                print(
-                    "{}: {}: No such file or directory".format(cmd, args[0]),
-                    file=file,
+                return None
+            return f"{cmd}: {args[0]}: No such file or directory\n"
+
+
+def handle_output(stdout, stderr=None, redirect_mode="", filename=None):
+    # print("Redirect_mode:", redirect_mode)
+    mode = "w" if ">" in redirect_mode and ">>" not in redirect_mode else "a"
+    stdout_file = (
+        open(filename, mode)
+        if redirect_mode.endswith(">") and not redirect_mode.startswith("2")
+        else sys.stdout
+    )
+    stderr_file = open(filename, mode) if redirect_mode.startswith("2") else sys.stderr
+
+    if stderr and stderr is not None:
+        stderr_file.write(stderr)
+    if stdout and stdout is not None:
+        # print(type(stdout_file))
+        stdout_file.write(stdout)
+
+
+def parse_command(command: str):
+    cmd, args, filename, redirect_mode, has_pipe = parse_arguments(command)
+
+    # Building process chain
+    processes = []
+    prev_stdout = None
+
+    for i in range(len(cmd)):
+        sys_cmd = [cmd[i]] + args[i]
+        stdout_target = subprocess.PIPE if i < len(cmd) - 1 or not has_pipe else None
+        stdin_src = prev_stdout if prev_stdout else None
+
+        if cmd[i] in commands:
+            prev_stdout = run_builtin(cmd[i], args[i])
+            if i == len(cmd) - 1:
+                handle_output(
+                    stdout=prev_stdout, redirect_mode=redirect_mode, filename=filename
                 )
+                return
+
+        elif cmd[i] in executables:
+            sys_cmd = [cmd[i]] + args[i]
+
+            if isinstance(stdin_src, str):
+                p = subprocess.Popen(
+                    sys_cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=stdout_target,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                p.stdin.write(stdin_src)
+                # p.stdin.close()
+            else:
+                p = subprocess.Popen(
+                    sys_cmd,
+                    stdin=stdin_src,
+                    stdout=stdout_target,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+
+            if prev_stdout and not isinstance(prev_stdout, str):
+                prev_stdout.close()
+            prev_stdout = p.stdout
+            processes.append(p)
+        else:
+            print(f"{cmd[i]}: command not found")
             return
 
-    if cmd in executables.keys():
-        os.system(command)
-        return
+    # Wait for last process output
+    stdout, stderr = processes[-1].communicate()
 
-    print("{}: command not found".format(cmd), file=file)
+    handle_output(
+        stdout=stdout, stderr=stderr, redirect_mode=redirect_mode, filename=filename
+    )
 
 
 def main():
-    # Wait for user input
-    command = input("$ ")
-    parse_command(command)
-    main()
-
-
-def load_exec():
-    paths = os.getenv("PATH").split(os.pathsep)
-    for dir in paths:
-        if os.path.isdir(dir):
-            for file in os.listdir(dir):
-                if file not in executables and os.path.isfile(os.path.join(dir, file)):
-                    executables[file] = os.path.join(dir, file)
+    while True:
+        try:
+            command = input("$ ")
+            parse_command(command)
+        except EOFError:
+            break
 
 
 if __name__ == "__main__":
-    commands = ["echo", "exit", "type", "pwd", "cd"]
-    executables = {}
-    tab_state = {"count": 0, "last_text": ""}
-
     load_exec()
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
