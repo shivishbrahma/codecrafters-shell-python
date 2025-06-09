@@ -89,7 +89,7 @@ def run_builtin(cmd, args):
     if cmd == "echo":
         return " ".join(args) + "\n"
     if cmd == "type":
-        if not args:
+        if len(args) == 0:
             return f"{cmd}: missing file operand\n"
         if args[0] in commands:
             return f"{args[0]} is a shell builtin\n"
@@ -172,7 +172,6 @@ def parse_command(command: str):
     prev_stdout = None
 
     for i in range(len(cmd)):
-        sys_cmd = [cmd[i]] + args[i]
         stdout_target = subprocess.PIPE if i < len(cmd) - 1 or not has_pipe else None
         stdin_src = prev_stdout if prev_stdout else None
 
@@ -234,7 +233,7 @@ def main():
 if __name__ == "__main__":
     load_exec()
 
-    if (histfile:= os.environ.get("HISTFILE")) is not None:
+    if (histfile := os.environ.get("HISTFILE")) is not None:
         try:
             readline.read_history_file(histfile)
         except OSError:
